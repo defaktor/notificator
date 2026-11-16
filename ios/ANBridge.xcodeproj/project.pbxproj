@@ -1,0 +1,266 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1B316C2A61BC07AD2926E500 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 28AAD1477D5182D66D4B03B3 /* Assets.xcassets */; };
+		496F937A080696367E89B4F0 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9BCA438417D62B8BB39B2EE /* Views.swift */; };
+		5F4C0158DC37F7425F47E939 /* ANBridgeCore in Frameworks */ = {isa = PBXBuildFile; productRef = C7092A71B2EB03857AF3238E /* ANBridgeCore */; };
+		85485ABDDFC5AA715BEE5C09 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 26B2A637F7DC4079D5AB78A5 /* PrivacyInfo.xcprivacy */; };
+		8BB9414209F5C3029D773F94 /* BridgeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC451881FA577F7B982335A7 /* BridgeModel.swift */; };
+		AAC518BFBA8CC6C266B9025C /* PairVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DB95B45FECA8A967A669D90 /* PairVault.swift */; };
+		C5993E655603A051247B0ECD /* ANBridgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E266E0387341B3EFBFE43D88 /* ANBridgeApp.swift */; };
+		D0CC5E0109F4D175C4CBA2F8 /* QRScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A4653088CDBA3C17095276A /* QRScanner.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		26B2A637F7DC4079D5AB78A5 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		28AAD1477D5182D66D4B03B3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		38A007151ABE87CC01A5B6E9 /* ANBridge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ANBridge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B594B6DB375E1BF3F23CDD6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8A4653088CDBA3C17095276A /* QRScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScanner.swift; sourceTree = "<group>"; };
+		9DB95B45FECA8A967A669D90 /* PairVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairVault.swift; sourceTree = "<group>"; };
+		A9BCA438417D62B8BB39B2EE /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
+		E266E0387341B3EFBFE43D88 /* ANBridgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ANBridgeApp.swift; sourceTree = "<group>"; };
+		FC451881FA577F7B982335A7 /* BridgeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeModel.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7561BFB015D8F536760CB671 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5F4C0158DC37F7425F47E939 /* ANBridgeCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3A2A88DEEFF3D1D23E496597 /* ANBridge */ = {
+			isa = PBXGroup;
+			children = (
+				E266E0387341B3EFBFE43D88 /* ANBridgeApp.swift */,
+				FC451881FA577F7B982335A7 /* BridgeModel.swift */,
+				9DB95B45FECA8A967A669D90 /* PairVault.swift */,
+				8A4653088CDBA3C17095276A /* QRScanner.swift */,
+				A9BCA438417D62B8BB39B2EE /* Views.swift */,
+				28AAD1477D5182D66D4B03B3 /* Assets.xcassets */,
+				26B2A637F7DC4079D5AB78A5 /* PrivacyInfo.xcprivacy */,
+				7B594B6DB375E1BF3F23CDD6 /* Info.plist */,
+			);
+			path = ANBridge;
+			sourceTree = "<group>";
+		};
+		4FCFB17C3E55E8A168D5907F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				38A007151ABE87CC01A5B6E9 /* ANBridge.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B28B7AF69320201D1CF206EB = {
+			isa = PBXGroup;
+			children = (
+				3A2A88DEEFF3D1D23E496597 /* ANBridge */,
+				4FCFB17C3E55E8A168D5907F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0E8A3AD980EC179856012B7E /* ANBridge */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8D8B67C81BE4F695571BC034 /* Build configuration list for PBXNativeTarget "ANBridge" */;
+			buildPhases = (
+				60C4A7BCE9558CB20D9ADDCB /* Sources */,
+				7561BFB015D8F536760CB671 /* Frameworks */,
+				6AC696A880E335123309EDD3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ANBridge;
+			packageProductDependencies = (
+				C7092A71B2EB03857AF3238E /* ANBridgeCore */,
+			);
+			productName = ANBridge;
+			productReference = 38A007151ABE87CC01A5B6E9 /* ANBridge.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		98F54143AB4E86B28C3AFEE0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					0E8A3AD980EC179856012B7E = {
+						CreatedOnToolsVersion = 26.0;
+					};
+				};
+			};
+			buildConfigurationList = 01DF1D3A7F02866ECA6BB742 /* Build configuration list for PBXProject "ANBridge" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ru;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				ru,
+				Base,
+			);
+			mainGroup = B28B7AF69320201D1CF206EB;
+			packageReferences = (
+				4FF15B936B8851E2CAA578B9 /* XCLocalSwiftPackageReference "." */,
+			);
+			productRefGroup = 4FCFB17C3E55E8A168D5907F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0E8A3AD980EC179856012B7E /* ANBridge */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6AC696A880E335123309EDD3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1B316C2A61BC07AD2926E500 /* Assets.xcassets in Resources */,
+				85485ABDDFC5AA715BEE5C09 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		60C4A7BCE9558CB20D9ADDCB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C5993E655603A051247B0ECD /* ANBridgeApp.swift in Sources */,
+				8BB9414209F5C3029D773F94 /* BridgeModel.swift in Sources */,
+				AAC518BFBA8CC6C266B9025C /* PairVault.swift in Sources */,
+				D0CC5E0109F4D175C4CBA2F8 /* QRScanner.swift in Sources */,
+				496F937A080696367E89B4F0 /* Views.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		639A7CA24D39909E713B47F7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ANBridge/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.anbridge.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		7082CC0B6FC1282FCEABD07A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ANBridge/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.anbridge.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		89E1FD6268CC0F221A2BE178 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E6DE6C99132752C914FEF632 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		01DF1D3A7F02866ECA6BB742 /* Build configuration list for PBXProject "ANBridge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				89E1FD6268CC0F221A2BE178 /* Debug */,
+				E6DE6C99132752C914FEF632 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8D8B67C81BE4F695571BC034 /* Build configuration list for PBXNativeTarget "ANBridge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7082CC0B6FC1282FCEABD07A /* Debug */,
+				639A7CA24D39909E713B47F7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		4FF15B936B8851E2CAA578B9 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C7092A71B2EB03857AF3238E /* ANBridgeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FF15B936B8851E2CAA578B9 /* XCLocalSwiftPackageReference "." */;
+			productName = ANBridgeCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+}
