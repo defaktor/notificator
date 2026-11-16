@@ -45,7 +45,7 @@ struct ConnectionView:View {
                     if !model.hasPair {
                         Button { openCamera() } label:{ Label("Сканировать QR с Android",systemImage:"qrcode.viewfinder").font(.headline).padding(.vertical,8) }
                     } else {
-                        Button { model.reconnect() } label:{ Label("Подключиться снова",systemImage:"arrow.clockwise") }
+                        Button { model.retryConnection() } label:{ Label("Подключиться снова",systemImage:"arrow.clockwise") }
                         Text("После подтверждения владельцем отправьте тест в ANBridge на Android. Он должен появиться в истории.").font(.footnote).foregroundStyle(.secondary)
                     }
                     if !model.bannersAllowed {
@@ -203,7 +203,7 @@ struct SettingsView:View {
                     Button("Подготовить экспорт") { model.exportDiagnostics() }
                     if !model.diagnosticsText.isEmpty { ShareLink(item:model.diagnosticsText) { Label("Поделиться диагностикой",systemImage:"square.and.arrow.up") } }
                 }
-                Section { LabeledContent("ANBridge",value:"1.0 (1)"); Text("Работает локально, без сервера и учётной записи.").font(.caption).foregroundStyle(.secondary) }
+                Section { LabeledContent("ANBridge",value:model.versionDescription); Text("Работает локально, без сервера и учётной записи.").font(.caption).foregroundStyle(.secondary) }
             }.navigationTitle("Настройки")
             .confirmationDialog("Очистить историю и баннеры?",isPresented:$clear,titleVisibility:.visible) {
                 Button("Очистить историю",role:.destructive) { model.clearHistory() }; Button("Отмена",role:.cancel) {}

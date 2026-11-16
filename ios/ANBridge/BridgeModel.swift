@@ -35,7 +35,8 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
     private var writes=WriteQueue()
     private var completions:[String:() -> Void]=[:]
     private var writeStarted:Date?
-    private var reconnectWhenClosed:UUID?
+    private var recovery=ConnectionRecovery()
+    private var retryAfterClose=false
     private var retryAttempt=0
     private var retry:DispatchWorkItem?
     private var ticker:Timer?
@@ -69,8 +70,29 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
         diagnostics.append(Diagnostic(at:Date(),code:code,count:history.count)); diagnostics=Array(diagnostics.suffix(500))
         if let directory,let bytes=try? JSONEncoder().encode(diagnostics) { try? bytes.write(to:directory.appendingPathComponent("diagnostics.json"),options:[.atomic,.completeFileProtectionUntilFirstUserAuthentication]) }
     }
+    var versionDescription:String {
+        let version=Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "unknown"
+        let build=Bundle.main.object(forInfoDictionaryKey:"CFBundleVersion") as? String ?? "unknown"
+        return "\(version) (\(build))"
+    }
+    private var transportState:String {
+        if recovery.closing != nil { return "closing" }
+        if ready { return "ready" }
+        if let peripheral {
+            switch peripheral.state {
+            case .connecting: return "connecting"
+            case .connected: return "handshake"
+            case .disconnecting: return "disconnecting"
+            case .disconnected: return "disconnected"
+            @unknown default: return "unknown"
+            }
+        }
+        return manager?.isScanning == true ? "scanning" : "idle"
+    }
     func exportDiagnostics() {
-        diagnosticsText=diagnostics.map { "\($0.at.ISO8601Format()) \($0.code) count=\($0.count)" }.joined(separator:"\n")
+        let bluetooth=manager?.state.rawValue ?? -1
+        let header="ANBridge \(versionDescription) diagnostics\nbluetoothState=\(bluetooth) transport=\(transportState) paired=\(candidate != nil) ready=\(ready) foreground=\(UIApplication.shared.applicationState == .active)\n"
+        diagnosticsText=header+diagnostics.map { "\($0.at.ISO8601Format()) \($0.code) count=\($0.count)" }.joined(separator:"\n")
     }
     func refreshPermissions() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in DispatchQueue.main.async { self.bannersAllowed = settings.authorizationStatus == .authorized && settings.alertSetting == .enabled } }
@@ -102,20 +124,67 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
             requestBanners(); reconnect()
         } catch { errorMessage="QR не подходит. Создайте новый QR в ANBridge на Android."; log("qr_invalid") }
     }
-    func reconnect() {
-        guard candidate != nil, store != nil, manager?.state == .poweredOn, peripheral == nil else { return }
-        retry?.cancel()
-        status="Подключение"
-        if let id=candidate?.peripheralId.flatMap(UUID.init(uuidString:)), let known=manager.retrievePeripherals(withIdentifiers:[id]).first {
-            connect(known)
-        } else { manager.scanForPeripherals(withServices:[Self.service],options:[CBCentralManagerScanOptionAllowDuplicatesKey:false]) }
+    /// Automatic recovery leaves a known-device connection registered in the background.
+    func reconnect() { requestReconnect(manual:false) }
+    /// A deliberate retry also recovers from a stale, indefinitely pending CBPeripheral.
+    func retryConnection() {
+        log("manual_recovery"); rejected=[]; retryAttempt=0; retryAfterClose=false
+        requestReconnect(manual:true)
     }
-    private func connect(_ p:CBPeripheral) {
-        manager.stopScan(); peripheral=p; p.delegate=self; manager.connect(p,options:nil)
-        // Keep a known-device connect pending while the phone is out of range; iOS may suspend us.
+    private var transportAvailable:Bool { candidate != nil && store != nil && manager?.state == .poweredOn }
+    private func requestReconnect(manual:Bool) {
+        let action=recovery.request(manual:manual,available:transportAvailable,current:peripheral?.identifier,ready:ready)
+        applyRecovery(action)
+        observePendingDiscovery()
+    }
+    private func applyRecovery(_ action:ConnectionRecovery.Action) {
+        guard action != .none else { return }
+        retry?.cancel(); retry=nil
+        switch action {
+        case .none: break
+        case .cancel:
+            guard let p=peripheral else { return }
+            manager.stopScan(); resetSession()
+            status="Подключение"; explanation="Закрываем прежнюю попытку и заново ищем Android рядом."
+            log("cancel_for_scan")
+            // Keep ownership until the terminal callback. Otherwise its late arrival
+            // could reset a newly discovered connection to the same device.
+            manager.cancelPeripheralConnection(p)
+        case .known:
+            status="Подключение"
+            if let id=candidate?.peripheralId.flatMap(UUID.init(uuidString:)),let known=manager.retrievePeripherals(withIdentifiers:[id]).first {
+                connect(known,observeDiscovery:true)
+            } else { startScan() }
+        case .scan: startScan()
+        }
+    }
+    private func startScan() {
+        guard transportAvailable,peripheral == nil,recovery.closing == nil else { return }
+        manager.stopScan(); status="Подключение"
+        explanation="Ищем ANBridge на Android рядом по Bluetooth. Откройте приложение на Android."
+        manager.scanForPeripherals(withServices:[Self.service],options:[CBCentralManagerScanOptionAllowDuplicatesKey:false])
+        log("scan_started")
+    }
+    private func connect(_ p:CBPeripheral,observeDiscovery:Bool=false) {
+        guard transportAvailable,recovery.closing == nil,peripheral == nil else { return }
+        manager.stopScan(); peripheral=p; p.delegate=self
+        recovery.started(p.identifier,now:ProcessInfo.processInfo.systemUptime,observeDiscovery:observeDiscovery)
+        manager.connect(p,options:nil); log("connect_pending")
+        // A background pending operation can wake us. A foreground attempt gets a
+        // bounded rediscovery fallback in tick(), since BLE addresses can change.
         handshakeDeadline=nil
+        observePendingDiscovery()
+    }
+    private func observePendingDiscovery() {
+        guard recovery.shouldObserveDiscovery(available:transportAvailable,current:peripheral?.identifier,ready:ready),!manager.isScanning else { return }
+        manager.scanForPeripherals(withServices:[Self.service],options:[CBCentralManagerScanOptionAllowDuplicatesKey:false])
+        log("known_pending_scan")
+    }
+    private func owns(_ p:CBPeripheral) -> Bool {
+        peripheral === p && recovery.acceptsCallback(from:p.identifier,current:peripheral?.identifier)
     }
     func centralManagerDidUpdateState(_ central:CBCentralManager) {
+        guard central === manager else { return }
         switch central.state {
         case .poweredOn: reconnect()
         case .unauthorized: stopTransport(); status="Требуется разрешение"; explanation="Разрешите Bluetooth в Настройках → ANBridge."
@@ -125,29 +194,56 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
         }
     }
     func centralManager(_ central:CBCentralManager,willRestoreState dict:[String:Any]) {
+        guard central === manager else { return }
         guard candidate != nil,store != nil else {
             (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral])?.forEach { central.cancelPeripheralConnection($0) }; return
         }
         if let known=(dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral])?.first(where:{ $0.identifier.uuidString == candidate?.peripheralId }) {
             peripheral=known; known.delegate=self
-            if known.state == .connected {
-                // A restored physical link may still carry Android's old Noise state. Reopen it first.
-                reconnectWhenClosed=known.identifier; central.cancelPeripheralConnection(known)
-            } else { central.connect(known,options:nil) }
+            log("transport_restored")
+            switch known.state {
+            case .connected,.disconnecting:
+                // A restored physical link may still carry Android's old Noise state.
+                // Wait for its closure before constructing a new session.
+                recovery.restored(known.identifier,connected:true,now:ProcessInfo.processInfo.systemUptime)
+                reconnect()
+            case .connecting:
+                // Core Bluetooth already owns this pending operation.
+                recovery.restored(known.identifier,connected:false,now:ProcessInfo.processInfo.systemUptime)
+                observePendingDiscovery()
+            case .disconnected:
+                peripheral=nil
+                reconnect()
+            @unknown default: stopTransport()
+            }
         }
     }
     func centralManager(_ central:CBCentralManager,didDiscover p:CBPeripheral,advertisementData:[String:Any],rssi RSSI:NSNumber) {
-        guard peripheral == nil,!rejected.contains(p.identifier) else { return }; connect(p)
+        guard central === manager,transportAvailable,recovery.closing == nil,!rejected.contains(p.identifier) else { return }
+        if let pending=peripheral {
+            let action=recovery.discoveryWhilePending(available:transportAvailable,current:pending.identifier,ready:ready)
+            if action != .none { log("known_pending_rediscovered"); applyRecovery(action) }
+            return
+        }
+        log("service_discovered"); connect(p)
     }
-    func centralManager(_ central:CBCentralManager,didConnect p:CBPeripheral) { beginDiscovery(p) }
+    func centralManager(_ central:CBCentralManager,didConnect p:CBPeripheral) {
+        guard central === manager,owns(p) else {
+            if central === manager { central.cancelPeripheralConnection(p) }
+            log("stale_connect_ignored"); return
+        }
+        manager.stopScan(); recovery.linkConnected(p.identifier); log("link_connected"); beginDiscovery(p)
+    }
     private func beginDiscovery(_ p:CBPeripheral) {
         resetSession(); p.delegate=self; p.discoverServices([Self.service]); handshakeDeadline=Date().addingTimeInterval(20)
     }
     func peripheral(_ p:CBPeripheral,didDiscoverServices error:Error?) {
+        guard owns(p) else { return }
         guard error == nil, let service=p.services?.first(where:{$0.uuid == Self.service}) else { fail(.framing); return }
         p.discoverCharacteristics([Self.dataUUID,Self.controlUUID],for:service)
     }
     func peripheral(_ p:CBPeripheral,didDiscoverCharacteristicsFor service:CBService,error:Error?) {
+        guard owns(p) else { return }
         guard error == nil else { fail(.framing); return }
         control=service.characteristics?.first(where:{$0.uuid == Self.controlUUID && $0.properties.contains(.write)})
         dataCharacteristic=service.characteristics?.first(where:{$0.uuid == Self.dataUUID && $0.properties.contains(.indicate)})
@@ -155,6 +251,7 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
         p.setNotifyValue(true,for:dataCharacteristic)
     }
     func peripheral(_ p:CBPeripheral,didUpdateNotificationStateFor characteristic:CBCharacteristic,error:Error?) {
+        guard owns(p),characteristic === dataCharacteristic else { return }
         guard error == nil,characteristic.isNotifying,characteristic.uuid == Self.dataUUID,let candidate else { fail(.framing); return }
         do {
             session=try SecureSession(candidate:candidate,resume:candidate.confirmed || candidate.attempted)
@@ -163,6 +260,7 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
         } catch { fail(.authentication) }
     }
     func peripheral(_ p:CBPeripheral,didUpdateValueFor characteristic:CBCharacteristic,error:Error?) {
+        guard owns(p),characteristic === dataCharacteristic else { return }
         guard error == nil,characteristic.uuid == Self.dataUUID,let value=characteristic.value else { fail(.framing); return }
         do {
             guard let complete=try assembler.receive(value,now:ProcessInfo.processInfo.systemUptime) else { return }
@@ -199,6 +297,7 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
             try PairVault.save(confirmed); candidate=confirmed
             // Core Bluetooth has acknowledged the final indication when it delivers this value.
             frameBytes=max; assembler.frameBytes=max; ready=true; retryAttempt=0; handshakeDeadline=nil
+            recovery.authenticated()
             status="Подключено"; deviceName=confirmed.deviceName; explanation="Выберите приложения на Android и отправьте тестовое сообщение."
             contact(); log("ready"); return
         }
@@ -230,7 +329,7 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
         writeStarted=Date(); p.writeValue(frame,for:control,type:.withResponse)
     }
     func peripheral(_ p:CBPeripheral,didWriteValueFor characteristic:CBCharacteristic,error:Error?) {
-        guard p.identifier == peripheral?.identifier,characteristic.uuid == Self.controlUUID else { return }
+        guard owns(p),characteristic === control,characteristic.uuid == Self.controlUUID else { return }
         guard error == nil else { fail(.framing); return }
         do {
             writeStarted=nil
@@ -238,38 +337,44 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
             writeNext()
         } catch { fail(.framing) }
     }
-    func centralManager(_ central:CBCentralManager,didFailToConnect p:CBPeripheral,error:Error?) { disconnected(p,persistConnect:false) }
-    func centralManager(_ central:CBCentralManager,didDisconnectPeripheral p:CBPeripheral,error:Error?) {
-        if reconnectWhenClosed == p.identifier {
-            reconnectWhenClosed=nil; peripheral=nil; resetSession(); scheduleReconnect(); return
-        }
-        disconnected(p,persistConnect:true)
+    func centralManager(_ central:CBCentralManager,didFailToConnect p:CBPeripheral,error:Error?) {
+        guard central === manager else { return }
+        disconnected(p,failed:true)
     }
-    private func disconnected(_ p:CBPeripheral,persistConnect:Bool) {
-        guard peripheral?.identifier == p.identifier else { return }
-        peripheral=nil; resetSession()
+    func centralManager(_ central:CBCentralManager,didDisconnectPeripheral p:CBPeripheral,error:Error?) {
+        guard central === manager else { return }
+        disconnected(p,failed:false)
+    }
+    private func disconnected(_ p:CBPeripheral,failed:Bool) {
+        guard peripheral === p else { return }
+        let requestedClose=recovery.isClosing(p.identifier)
+        guard recovery.closed(p.identifier) else { return }
+        let shouldDelay=retryAfterClose; retryAfterClose=false
+        p.delegate=nil; peripheral=nil; resetSession()
+        log(requestedClose ? "retry_transport_closed" : failed ? "connect_failed" : "link_disconnected")
         guard candidate != nil,store != nil else { return }
         status="Вне связи"; explanation=candidate?.confirmed == true ? "Телефоны соединятся снова в зоне Bluetooth. После ручного закрытия откройте ANBridge." : "Если Android не сохранил пару, удалите её здесь и создайте новый QR."
-        if persistConnect,manager.state == .poweredOn,candidate?.peripheralId == p.identifier.uuidString { connect(p) }
-        else { scheduleReconnect() }
+        if requestedClose { if shouldDelay { scheduleReconnect() } else { reconnect() } }
+        else if !failed,transportAvailable { reconnect() }
+        else { recovery.preferDiscovery(); scheduleReconnect() }
     }
     private func scheduleReconnect() {
-        guard manager.state == .poweredOn,candidate != nil else { return }
+        guard transportAvailable,peripheral == nil,recovery.closing == nil else { return }
         if UIApplication.shared.applicationState != .active {
             // A registered Core Bluetooth operation, unlike a Timer, can wake the suspended application.
-            if let id=candidate?.peripheralId.flatMap(UUID.init(uuidString:)),let p=manager.retrievePeripherals(withIdentifiers:[id]).first { connect(p) }
-            else { manager.scanForPeripherals(withServices:[Self.service],options:nil) }
-            return
+            reconnect(); return
         }
         retry?.cancel(); let delay=min(60,pow(2,Double(min(retryAttempt,6))))*Double.random(in:0.8...1.2); retryAttempt += 1
+        log("retry_scheduled")
         let work=DispatchWorkItem { [weak self] in self?.reconnect() }; retry=work; DispatchQueue.main.asyncAfter(deadline:.now()+delay,execute:work)
     }
     private func resetSession() {
         ready=false; handshakePending=false; session=nil; assembler=FrameAssembler(); frameBytes=20; writes=WriteQueue(); completions=[:]; writeStarted=nil; control=nil; dataCharacteristic=nil; handshakeDeadline=nil
     }
     private func stopTransport() {
-        reconnectWhenClosed=nil; retry?.cancel(); manager?.stopScan()
-        if let p=peripheral { manager?.cancelPeripheralConnection(p) }; peripheral=nil; resetSession()
+        retry?.cancel(); retry=nil; manager?.stopScan()
+        if let p=peripheral { p.delegate=nil; manager?.cancelPeripheralConnection(p) }
+        peripheral=nil; retryAfterClose=false; recovery.stopped(); resetSession()
     }
     private func fail(_ error:BridgeError) {
         log(error == .authentication ? "authentication" : error == .version ? "version" : "session_error")
@@ -278,15 +383,18 @@ final class BridgeModel:NSObject,ObservableObject,CBCentralManagerDelegate,CBPer
             if let p=peripheral { rejected.insert(p.identifier) }
             explanation="Ключ Android не совпадает или привязка не завершена. Проверьте QR на Android."
         }
-        let closing=peripheral?.identifier; stopTransport()
-        if candidate != nil,error != .version {
-            if error != .version { status="Вне связи" }
-            if let closing { reconnectWhenClosed=closing }
-            else { scheduleReconnect() }
-        }
+        guard error != .version,transportAvailable else { stopTransport(); return }
+        status="Вне связи"
+        // Cancel through the same close fence as a manual retry, then rediscover.
+        retryAfterClose=true
+        requestReconnect(manual:true)
     }
     private func tick() {
         guard store != nil else { return }
+        let recoveryAction=recovery.check(now:ProcessInfo.processInfo.systemUptime,
+            foreground:UIApplication.shared.applicationState == .active,available:transportAvailable,
+            current:peripheral?.identifier,ready:ready)
+        if recoveryAction != .none { log("connect_scan_fallback"); applyRecovery(recoveryAction); return }
         if let started=writeStarted,Date().timeIntervalSince(started) >= 15 { fail(.timeout); return }
         if let deadline=handshakeDeadline,Date() >= deadline { fail(.timeout); return }
         do { try assembler.checkIdle(now:ProcessInfo.processInfo.systemUptime) } catch { fail(.timeout) }
